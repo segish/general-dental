@@ -39,7 +39,8 @@
                                             {{ \App\CentralLogics\translate('Select Service Type') }}</option>
                                         <option value="prescription">{{ \App\CentralLogics\translate('Prescription') }}
                                         </option>
-                                        <option value="billing service">{{ \App\CentralLogics\translate('Medical Record') }}
+                                        <option value="billing service">
+                                            {{ \App\CentralLogics\translate('Medical Record') }}
                                         <option value="medical record">{{ \App\CentralLogics\translate('Medical Record') }}
                                         </option>
                                         <option value="diagnosis">{{ \App\CentralLogics\translate('Diagnosis') }}</option>
@@ -57,7 +58,8 @@
                                             {{ \App\CentralLogics\translate('Pregnancy History') }}</option>
                                         <option value="pregnancy history">
                                             {{ \App\CentralLogics\translate('Labour Followup') }}</option>
-
+                                        <option value="dental_chart">{{ \App\CentralLogics\translate('Dental Chart') }}
+                                        </option>
                                     </select>
                                 </div>
                                 <div class="col-12 form-group">

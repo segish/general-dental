@@ -129,11 +129,11 @@
                 title: '{{ translate('Are you sure?') }}',
                 text: "{{ translate("You won't be able to revert this!") }}",
                 showCancelButton: true,
-                confirmButtonColor: '#3085d6',
-                cancelButtonColor: '#d33',
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
                 confirmButtonText: '{{ translate('Yes, delete it!') }}'
             }).then((result) => {
-                if (result.isConfirmed) {
+                if (result.value) {
                     $.ajax({
                         url: '{{ url('/') }}/admin/assessment-categories/delete/' + id,
                         type: 'DELETE',

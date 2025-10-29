@@ -94,7 +94,7 @@ class CreateRoutePermissionsCommand extends Command
 
         // Call the DefaultRolesSeeder to create default roles and assign permissions
         $this->call('db:seed', ['--class' => 'DefaultRolesSeeder']);
-        $this->call('db:seed', ['--class' => 'AdminTableSeeder']);
+        // $this->call('db:seed', ['--class' => 'AdminTableSeeder']);
 
         $this->info('Default roles and permissions created successfully.');
     }

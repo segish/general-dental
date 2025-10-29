@@ -29,16 +29,15 @@ class ServiceCategory extends Model
         'service_type',
     ];
 
-    protected $casts = [
-        'service_type' => 'array',
-    ];
-
     /**
      * Accessor to get service_type as an array.
      */
     public function getServiceTypeAttribute($value)
     {
-        return $value ? explode(',', $value) : [];
+        if (empty($value)) {
+            return [];
+        }
+        return is_string($value) ? explode(',', $value) : (is_array($value) ? $value : []);
     }
 
     /**
@@ -46,8 +45,12 @@ class ServiceCategory extends Model
      */
     public function setServiceTypeAttribute($value)
     {
-        $this->attributes['service_type'] = is_array($value)
-            ? implode(',', $value)
-            : $value;
+        if (is_array($value)) {
+            // Filter out empty values and implode
+            $filtered = array_filter($value);
+            $this->attributes['service_type'] = !empty($filtered) ? implode(',', $filtered) : null;
+        } else {
+            $this->attributes['service_type'] = $value;
+        }
     }
 }

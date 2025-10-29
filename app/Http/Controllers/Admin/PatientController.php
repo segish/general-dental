@@ -391,6 +391,7 @@ class PatientController extends Controller
         $visits->load([
             'procedures',
             'documents',
+            'dentalCharts.creator',
             'laboratoryRequest.testResults2.attributes.attribute.unit',
             'laboratoryRequest.testResults2.attributes.attribute.attributeReferences',
             'laboratoryRequest.testResults2.laboratoryRequestTest.test.testCategory',

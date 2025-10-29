@@ -68,17 +68,19 @@
                                         <td>{{ $inventory->firstItem() + $key }}</td>
                                         <td>{{ $item->medicine->name }}</td>
                                         <td>{{ $item->batch_number ? $item->batch_number : 'N/A' }}</td>
-                                        <td class="{{$item->isLowStock()?'text-danger':'text-success'}}">{{ $item->quantity }}
-                                            @if($item->isLowStock())
-                                            <small class="badge bg-soft-danger text-danger">low</small>
+                                        <td class="{{ $item->isLowStock() ? 'text-danger' : 'text-success' }}">
+                                            {{ $item->quantity }}
+                                            @if ($item->isLowStock())
+                                                <small class="badge bg-soft-danger text-danger">low</small>
                                             @endif
                                         </td>
-                                        <td>{{Helpers::set_symbol( $item->buying_price )}}</td>
+                                        <td>{{ Helpers::set_symbol($item->buying_price) }}</td>
                                         <td>{{ Helpers::set_symbol($item->selling_price) }}</td>
-                                        <td class="{{$item->isExpiringSoon()?'text-danger':'text-success'}}">{{ $item->expiry_date ? date('d M Y', strtotime($item->expiry_date)) : 'N/A' }}
-                                             @if($item->isExpiringSoon())
-                                             <br>
-                                            <small class="badge bg-soft-danger text-danger">Expiring soon</small>
+                                        <td class="{{ $item->isExpiringSoon() ? 'text-danger' : 'text-success' }}">
+                                            {{ $item->expiry_date ? date('d M Y', strtotime($item->expiry_date)) : 'N/A' }}
+                                            @if ($item->isExpiringSoon())
+                                                <br>
+                                                <small class="badge bg-soft-danger text-danger">Expiring soon</small>
                                             @endif
                                         </td>
                                         <td>{{ $item->supplier ? $item->supplier->name : 'N/A' }}</td>
@@ -118,9 +120,20 @@
 
     <script>
         function deleteInventory(id) {
-            if (confirm("{{ translate('Are you sure you want to delete this inventory item?') }}")) {
-                document.getElementById('delete-form-' + id).submit();
-            }
+            Swal.fire({
+                title: '{{ translate('Are you sure?') }}',
+                text: "{{ translate('Are you sure you want to delete this inventory item?') }}",
+                showCancelButton: true,
+                cancelButtonColor: '#3085d6',
+                confirmButtonColor: '#d33',
+                cancelButtonText: '{{ translate('No') }}',
+                confirmButtonText: '{{ translate('Yes') }}',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.value) {
+                    document.getElementById('delete-form-' + id).submit();
+                }
+            });
         }
     </script>
 @endsection

@@ -208,6 +208,8 @@
 
                                                     @include('admin-views.patients.partials.sections._medical_documents')
 
+                                                    @include('admin-views.patients.partials.sections._dental_chart_section')
+
 
                                                 </div>
                                             </div>
@@ -300,6 +302,7 @@
     @include('admin-views.patients.partials.modals._medical_records_modals')
     @include('admin-views.patients.partials.modals._medical_document_modal')
     @include('admin-views.patients.partials.modals._visit_document_modal')
+    @include('admin-views.patients.partials.modals._dental_chart_modal')
 
     <script>
         let emergencyPrescriptionStats = @json($emergencyPrescriptionStats);
@@ -3639,6 +3642,8 @@
 @endpush
 @push('script')
     <script src="https://cdn.ckeditor.com/ckeditor5/41.4.2/classic/ckeditor.js"></script>
+    <!-- Fabric.js for Dental Charting -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
 
     <script>
         document.addEventListener("DOMContentLoaded", function() {

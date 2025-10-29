@@ -621,7 +621,8 @@
         !$visit->emergencyPrescriptions->count() > 0 &&
         !$visit->procedures->count() > 0 &&
         !$visit->documents->count() > 0 &&
-        !$visit->visitDocuments->count() > 0)
+        !$visit->visitDocuments->count() > 0 &&
+        !$visit->dentalCharts->count() > 0)
     <!-- Empty State for Visit Documents -->
     <div class="text-center py-4">
         <div class="mb-3">

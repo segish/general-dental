@@ -452,6 +452,17 @@
             {{ translate('Upload Files') }}
         </button>
     @endif
+
+    @if (auth('admin')->user()->can('dental_chart.add-new') &&
+            $visit->serviceCategory &&
+            in_array('dental_chart', $visit->serviceCategory->service_type))
+        <button class="btn btn-success rounded text-nowrap me-2 mb-2 mb-sm-0" id="add_new_dental_chart"
+            type="button" data-toggle="modal" data-target="#add-dental-chart" data-visit-id="{{ $visit->id }}"
+            title="Add Dental Chart">
+            <i class="tio-chart-line-up"></i>
+            {{ translate('Dental Chart') }}
+        </button>
+    @endif
 </div>
 
 @push('script_2')
@@ -987,5 +998,519 @@
             var i = Math.floor(Math.log(bytes) / Math.log(k));
             return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
+    </script>
+
+    <!-- Dental Charting JavaScript -->
+    <script>
+        let dentalChartCanvas = null;
+        let dentalChartFabric = null;
+        let currentTool = 'select';
+        let undoHistory = [];
+
+        // Initialize dental chart modal
+        $(document).on('click', '#add_new_dental_chart', function() {
+            var visitId = $(this).data('visit-id');
+            $('#dental_chart_visit_id').val(visitId);
+
+            // Reset form
+            $('#dentalChartForm')[0].reset();
+            $('#chart_type').val('');
+            $('#image_upload_group').hide();
+
+            // Initialize canvas when modal opens
+            $('#add-dental-chart').on('shown.bs.modal', function() {
+                initializeDentalChartCanvas();
+            });
+        });
+
+        // Initialize canvas
+        function initializeDentalChartCanvas() {
+            const canvasElement = document.getElementById('dentalChartCanvas');
+            if (!canvasElement) return;
+
+            // Get container width for responsive canvas
+            const container = canvasElement.parentElement;
+            const containerWidth = container.clientWidth - 20; // Subtract padding
+            const calculatedWidth = Math.max(800, containerWidth); // Minimum 800px width
+
+            dentalChartFabric = new fabric.Canvas('dentalChartCanvas', {
+                width: calculatedWidth,
+                height: 600,
+                backgroundColor: '#ffffff'
+            });
+
+            // Save initial state
+            saveState();
+
+            // Tool selection
+            $('[data-tool]').on('click', function() {
+                $('[data-tool]').removeClass('active');
+                $(this).addClass('active');
+                currentTool = $(this).data('tool');
+                setTool();
+            });
+
+            // Color picker
+            $('#strokeColor').on('change', function() {
+                if (dentalChartFabric) {
+                    dentalChartFabric.freeDrawingBrush.color = this.value;
+                }
+            });
+
+            // Undo button
+            $('#undoCanvas').on('click', function() {
+                undo();
+            });
+
+            // Clear button
+            $('#clearCanvas').on('click', function() {
+                Swal.fire({
+                    title: '{{ translate('Are you sure?') }}',
+                    text: 'Are you sure you want to clear the canvass?',
+                    showCancelButton: true,
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonColor: '#d33',
+                    cancelButtonText: '{{ translate('No') }}',
+                    confirmButtonText: '{{ translate('Yes') }}',
+                    reverseButtons: true
+                }).then((result) => {
+                    if (result.value) {
+                        dentalChartFabric.clear();
+                        dentalChartFabric.backgroundColor = '#ffffff';
+                        dentalChartFabric.renderAll();
+                        saveState();
+                    }
+                });
+            });
+
+            // Save draft button
+            $('#saveDraft').on('click', function() {
+                saveChartData();
+                toastr.success('Draft saved locally');
+            });
+
+            // Chart type change
+            $('#chart_type').on('change', function() {
+                const chartType = $(this).val();
+                if (chartType === 'image_annotation') {
+                    $('#image_upload_group').show();
+                } else {
+                    $('#image_upload_group').hide();
+                }
+            });
+
+            // Image upload handler
+            $('#chart_image').on('change', function(e) {
+                const file = e.target.files[0];
+                if (file && file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        fabric.Image.fromURL(event.target.result, function(img) {
+                            img.scaleToWidth(dentalChartFabric.width);
+                            img.scaleToHeight(dentalChartFabric.height);
+                            dentalChartFabric.setBackgroundImage(img, dentalChartFabric.renderAll.bind(
+                                dentalChartFabric));
+                            saveState();
+                        });
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            setTool();
+        }
+
+        // Set drawing tool
+        function setTool() {
+            if (!dentalChartFabric) return;
+
+            dentalChartFabric.isDrawingMode = false;
+            dentalChartFabric.selection = true;
+            dentalChartFabric.defaultCursor = 'default';
+
+            switch (currentTool) {
+                case 'select':
+                    dentalChartFabric.isDrawingMode = false;
+                    dentalChartFabric.selection = true;
+                    break;
+                case 'path':
+                    dentalChartFabric.isDrawingMode = true;
+                    dentalChartFabric.freeDrawingBrush.color = $('#strokeColor').val();
+                    dentalChartFabric.freeDrawingBrush.width = 2;
+                    break;
+                case 'circle':
+                    dentalChartFabric.on('mouse:down', createCircle);
+                    break;
+                case 'rect':
+                    dentalChartFabric.on('mouse:down', createRect);
+                    break;
+                case 'line':
+                    dentalChartFabric.on('mouse:down', createLine);
+                    break;
+                case 'text':
+                    dentalChartFabric.on('mouse:down', createText);
+                    break;
+            }
+
+            // Save state after any drawing
+            dentalChartFabric.on('object:added', function() {
+                saveState();
+            });
+        }
+
+        // Create shapes
+        function createCircle(opts) {
+            if (currentTool !== 'circle') return;
+            const pointer = dentalChartFabric.getPointer(opts.e);
+            const circle = new fabric.Circle({
+                left: pointer.x,
+                top: pointer.y,
+                radius: 20,
+                fill: '',
+                stroke: $('#strokeColor').val(),
+                strokeWidth: 2
+            });
+            dentalChartFabric.add(circle);
+            dentalChartFabric.off('mouse:down', createCircle);
+        }
+
+        function createRect(opts) {
+            if (currentTool !== 'rect') return;
+            const pointer = dentalChartFabric.getPointer(opts.e);
+            const rect = new fabric.Rect({
+                left: pointer.x,
+                top: pointer.y,
+                width: 50,
+                height: 50,
+                fill: '',
+                stroke: $('#strokeColor').val(),
+                strokeWidth: 2
+            });
+            dentalChartFabric.add(rect);
+            dentalChartFabric.off('mouse:down', createRect);
+        }
+
+        function createLine(opts) {
+            if (currentTool !== 'line') return;
+            const pointer = dentalChartFabric.getPointer(opts.e);
+            const line = new fabric.Line([pointer.x, pointer.y, pointer.x + 50, pointer.y], {
+                stroke: $('#strokeColor').val(),
+                strokeWidth: 2
+            });
+            dentalChartFabric.add(line);
+            dentalChartFabric.off('mouse:down', createLine);
+        }
+
+        function createText(opts) {
+            if (currentTool !== 'text') return;
+            const pointer = dentalChartFabric.getPointer(opts.e);
+            const text = new fabric.Text('Text', {
+                left: pointer.x,
+                top: pointer.y,
+                fontSize: 20,
+                fill: $('#strokeColor').val()
+            });
+            dentalChartFabric.add(text);
+            dentalChartFabric.off('mouse:down', createText);
+        }
+
+        // Undo functionality
+        function saveState() {
+            if (dentalChartFabric) {
+                undoHistory.push(JSON.stringify(dentalChartFabric));
+                if (undoHistory.length > 20) {
+                    undoHistory.shift();
+                }
+            }
+        }
+
+        function undo() {
+            if (undoHistory.length > 1) {
+                undoHistory.pop(); // Remove current state
+                const previousState = undoHistory[undoHistory.length - 1];
+                dentalChartFabric.loadFromJSON(previousState, function() {
+                    dentalChartFabric.renderAll();
+                });
+            }
+        }
+
+        // Save chart data
+        function saveChartData() {
+            if (!dentalChartFabric) return;
+            const chartData = JSON.stringify(dentalChartFabric);
+            $('#chart_data_json').val(chartData);
+        }
+
+        // Dental Chart Form Submission
+        $('#dentalChartForm').on('submit', function(e) {
+            e.preventDefault();
+
+            const submitButton = $(this).find('button[type="submit"]');
+            const originalText = disableButton(submitButton);
+
+            // Save canvas data
+            saveChartData();
+
+            const formData = new FormData(this);
+
+            $.ajax({
+                url: '{{ route('admin.dental_chart.store') }}',
+                method: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
+                success: function(response) {
+                    if (response.success) {
+                        toastr.success(response.message);
+                        $('#add-dental-chart').modal('hide');
+                        const currentUrl = new URL(window.location.href);
+                        currentUrl.searchParams.set('active', response.visit_id);
+                        location.href = currentUrl.toString();
+                    } else {
+                        toastr.error(response.message);
+                    }
+                },
+                error: function(xhr) {
+                    if (xhr.responseJSON && xhr.responseJSON.errors) {
+                        $.each(xhr.responseJSON.errors, function(key, value) {
+                            toastr.error(value[0]);
+                        });
+                    } else {
+                        toastr.error('An error occurred while saving the chart.');
+                    }
+                },
+                complete: function() {
+                    setTimeout(function() {
+                        enableButton(submitButton, originalText);
+                    }, 5000);
+                }
+            });
+        });
+
+        // Edit Dental Chart
+        function editDentalChart(chartId) {
+            $.ajax({
+                url: '{{ route('admin.dental_chart.edit', '') }}/' + chartId,
+                type: 'GET',
+                success: function(response) {
+                    if (response.success) {
+                        const chart = response.data;
+                        $('#edit_chart_id').val(chart.id);
+                        $('#edit_chart_type').val(chart.chart_type);
+                        $('#edit_chart_title').val(chart.title);
+                        $('#edit_chart_notes').val(chart.notes);
+
+                        // Initialize edit canvas
+                        $('#editDentalChartModal').on('shown.bs.modal', function() {
+                            initializeEditDentalChartCanvas(chart);
+                        });
+
+                        $('#editDentalChartModal').modal('show');
+                    } else {
+                        toastr.error(response.message);
+                    }
+                },
+                error: function(xhr) {
+                    toastr.error('Error loading chart data.');
+                }
+            });
+        }
+
+        // Initialize edit canvas
+        function initializeEditDentalChartCanvas(chart) {
+            const canvasElement = document.getElementById('editDentalChartCanvas');
+            if (!canvasElement) return;
+
+            // Get container width for responsive canvas
+            const container = canvasElement.parentElement;
+            const containerWidth = container.clientWidth - 20; // Subtract padding
+            const calculatedWidth = Math.max(800, containerWidth); // Minimum 800px width
+
+            dentalChartFabric = new fabric.Canvas('editDentalChartCanvas', {
+                width: calculatedWidth,
+                height: 600,
+                backgroundColor: '#ffffff'
+            });
+
+            // Load existing chart data
+            if (chart.chart_data) {
+                let chartData = chart.chart_data;
+                // If it's a string, parse it; if it's already an object, use it directly
+                if (typeof chartData === 'string') {
+                    chartData = JSON.parse(chartData);
+                }
+                dentalChartFabric.loadFromJSON(chartData, function() {
+                    dentalChartFabric.renderAll();
+                });
+            }
+
+            // Load background image if exists
+            if (chart.image_path) {
+                const imageUrl = '{{ asset('storage') }}/' + chart.image_path;
+                fabric.Image.fromURL(imageUrl, function(img) {
+                    img.scaleToWidth(dentalChartFabric.width);
+                    img.scaleToHeight(dentalChartFabric.height);
+                    dentalChartFabric.setBackgroundImage(img, dentalChartFabric.renderAll.bind(dentalChartFabric));
+                });
+            }
+
+            // Set up tools (same as create)
+            $('[data-tool]').on('click', function() {
+                $('[data-tool]').removeClass('active');
+                $(this).addClass('active');
+                currentTool = $(this).data('tool');
+                setTool();
+            });
+
+            $('#strokeColor').on('change', function() {
+                if (dentalChartFabric) {
+                    dentalChartFabric.freeDrawingBrush.color = this.value;
+                }
+            });
+
+            $('#editStrokeColor').on('change', function() {
+                if (dentalChartFabric) {
+                    dentalChartFabric.freeDrawingBrush.color = this.value;
+                }
+            });
+
+            $('#editClearCanvas').on('click', function() {
+                Swal.fire({
+                    title: '{{ translate('Are you sure?') }}',
+                    text: 'Are you sure you want to clear the canvas?',
+                    showCancelButton: true,
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonColor: '#d33',
+                    cancelButtonText: '{{ translate('No') }}',
+                    confirmButtonText: '{{ translate('Yes') }}',
+                    reverseButtons: true
+                }).then((result) => {
+                    if (result.value) {
+                        dentalChartFabric.clear();
+                        dentalChartFabric.backgroundColor = '#ffffff';
+                        dentalChartFabric.renderAll();
+                        saveState();
+                    }
+                });
+            });
+
+            $('#editUndoCanvas').on('click', function() {
+                undo();
+            });
+
+            dentalChartFabric.on('object:added', function() {
+                saveState();
+            });
+
+            saveState();
+            setTool();
+        }
+
+        // Edit form submission
+        $('#editDentalChartForm').on('submit', function(e) {
+            e.preventDefault();
+
+            const submitButton = $(this).find('button[type="submit"]');
+            const originalText = disableButton(submitButton);
+
+            saveChartData();
+            $('#edit_chart_data_json').val($('#chart_data_json').val());
+
+            const formData = new FormData(this);
+            const chartId = $('#edit_chart_id').val();
+
+            // Ensure chart_data is included
+            if ($('#chart_data_json').val()) {
+                formData.append('chart_data', $('#chart_data_json').val());
+            }
+
+            $.ajax({
+                url: '{{ route('admin.dental_chart.update', '') }}/' + chartId,
+                method: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
+                success: function(response) {
+                    if (response.success) {
+                        toastr.success(response.message);
+                        $('#editDentalChartModal').modal('hide');
+                        const currentUrl = new URL(window.location.href);
+                        currentUrl.searchParams.set('active', response.visit_id);
+                        location.href = currentUrl.toString();
+                    } else {
+                        toastr.error(response.message);
+                    }
+                },
+                error: function(xhr) {
+                    if (xhr.responseJSON && xhr.responseJSON.errors) {
+                        $.each(xhr.responseJSON.errors, function(key, value) {
+                            toastr.error(value[0]);
+                        });
+                    } else {
+                        toastr.error('An error occurred while updating the chart.');
+                    }
+                },
+                complete: function() {
+                    setTimeout(function() {
+                        enableButton(submitButton, originalText);
+                    }, 5000);
+                }
+            });
+        });
+
+        // Delete Dental Chart
+        function deleteDentalChart(chartId) {
+            Swal.fire({
+                title: '{{ translate('Are you sure?') }}',
+                text: '{{ translate('You want to delete this dental chart?') }}',
+                showCancelButton: true,
+                cancelButtonColor: 'default',
+                confirmButtonColor: '#FC6A57',
+                cancelButtonText: '{{ translate('No') }}',
+                confirmButtonText: '{{ translate('Yes') }}',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.value) {
+                    $.ajax({
+                        url: '{{ route('admin.dental_chart.delete', '') }}/' + chartId,
+                        type: 'DELETE',
+                        headers: {
+                            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                        },
+                        success: function(response) {
+                            if (response.success) {
+                                toastr.success(response.message);
+                                const currentUrl = new URL(window.location.href);
+                                currentUrl.searchParams.set('active', response.visit_id);
+                                location.href = currentUrl.toString();
+                            } else {
+                                toastr.error(response.message);
+                            }
+                        },
+                        error: function(xhr) {
+                            toastr.error('{{ translate('Failed to delete dental chart') }}');
+                        }
+                    });
+                }
+            });
+        }
+
+        // Load charts in view mode
+        $(document).ready(function() {
+            $('[id^="chart-canvas-"]').each(function() {
+                const canvasId = $(this).attr('id');
+                const chartId = canvasId.replace('chart-canvas-', '');
+
+                // Fetch chart data and render
+                // This would be done via AJAX or passed from backend
+                // For now, placeholder
+            });
+        });
     </script>
 @endpush

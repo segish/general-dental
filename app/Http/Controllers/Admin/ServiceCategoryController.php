@@ -55,15 +55,16 @@ class ServiceCategoryController extends Controller
         $request->validate([
             'name' => 'required|string|max:255|unique:service_categories',
             'description' => 'nullable|string',
-            'service_type.*' => 'nullable|in:prescription,medical record,billing service,diagnosis,lab test,radiology,vital sign,pregnancy,delivery summary,newborn,discharge,pregnancy history,Labour Followup',
+            'service_type.*' => 'nullable|in:prescription,medical record,billing service,diagnosis,lab test,radiology,vital sign,pregnancy,delivery summary,newborn,discharge,pregnancy history,Labour Followup,dental_chart',
         ]);
 
         try {
-            ServiceCategory::create([
-                'name' => $request->name,
-                'description' => $request->description,
-                'service_type' => $request->service_type ? implode(',', $request->service_type) : null,
-            ]);
+            $serviceCategory = new ServiceCategory();
+            $serviceCategory->name = $request->name;
+            $serviceCategory->description = $request->description;
+            $serviceCategory->service_type = is_array($request->service_type) ? $request->service_type : [];
+            $serviceCategory->save();
+
             Toastr::success('Service category created successfully!');
             return redirect()->route('admin.service_category.list');
         } catch (\Exception $e) {
@@ -83,16 +84,25 @@ class ServiceCategoryController extends Controller
         $request->validate([
             'name' => 'required|string|max:255|unique:service_categories,name,' . $id,
             'description' => 'nullable|string',
-            'service_type.*' => 'nullable|in:prescription,medical record,billing service,diagnosis,lab test,radiology,vital sign,pregnancy,delivery summary,newborn,discharge,pregnancy history,Labour Followup',
+            'service_type.*' => 'nullable|in:prescription,medical record,billing service,diagnosis,lab test,radiology,vital sign,pregnancy,delivery summary,newborn,discharge,pregnancy history,Labour Followup,dental_chart',
         ]);
 
         try {
-            $serviceCategory = ServiceCategory::findOrFail(id: $id);
+            $serviceCategory = ServiceCategory::findOrFail($id);
+
+            // Prepare service_type as array - mutator will handle conversion to comma-separated string
+            $serviceTypeArray = [];
+            if (!empty($request->service_type) && is_array($request->service_type)) {
+                $serviceTypeArray = array_filter($request->service_type); // Remove empty values
+            }
+
+            // Update using update method - mutator will convert array to string
             $serviceCategory->update([
                 'name' => $request->name,
                 'description' => $request->description,
-                'service_type' => $request->service_type, // array
+                'service_type' => $serviceTypeArray,
             ]);
+
             Toastr::success('Service category updated successfully!');
             return redirect()->route('admin.service_category.list');
         } catch (\Exception $e) {

@@ -52,6 +52,7 @@
                                                 'discharge',
                                                 'pregnancy history',
                                                 'Labour Followup',
+                                                'dental_chart',
                                             ];
                                             $selectedTypes = old('service_type', $serviceCategory->service_type ?? []);
                                         @endphp

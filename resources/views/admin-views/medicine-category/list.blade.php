@@ -100,9 +100,20 @@
 
     <script>
         function deleteCategory(id) {
-            if (confirm("{{ translate('Are you sure you want to delete this category?') }}")) {
-                document.getElementById('delete-form-' + id).submit();
-            }
+            Swal.fire({
+                title: '{{ translate('Are you sure?') }}',
+                text: "{{ translate('Are you sure you want to delete this category?') }}",
+                showCancelButton: true,
+                cancelButtonColor: '#3085d6',
+                confirmButtonColor: '#d33',
+                cancelButtonText: '{{ translate('No') }}',
+                confirmButtonText: '{{ translate('Yes') }}',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.value) {
+                    document.getElementById('delete-form-' + id).submit();
+                }
+            });
         }
     </script>
 @endsection

@@ -17,7 +17,7 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->text('description')->nullable();
-            $table->set('service_type', ['prescription', 'medical record', 'billing service', 'diagnosis', 'lab test', 'radiology', 'vital sign', 'pregnancy','delivery summary','newborn','discharge','pregnancy history'])->nullable();
+            $table->set('service_type', ['prescription', 'medical record', 'billing service', 'diagnosis', 'lab test', 'radiology', 'vital sign', 'pregnancy','delivery summary','newborn','discharge','pregnancy history','Labour Followup','dental_chart'])->nullable();
             $table->timestamps();
         });
     }

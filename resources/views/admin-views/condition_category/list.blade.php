@@ -69,11 +69,11 @@
                                                     </a>
                                                     <form
                                                         action="{{ route('admin.condition_category.delete', $category->id) }}"
-                                                        method="post"
-                                                        onsubmit="return confirm('{{ translate('Are you sure you want to delete this category?') }}')">
+                                                        method="post" id="delete-form-{{ $category->id }}">
                                                         @csrf
                                                         @method('delete')
-                                                        <button type="submit" class="btn btn-sm btn-danger">
+                                                        <button type="button" class="btn btn-sm btn-danger"
+                                                            onclick="deleteConditionCategory({{ $category->id }})">
                                                             <i class="tio-delete"></i>
                                                         </button>
                                                     </form>

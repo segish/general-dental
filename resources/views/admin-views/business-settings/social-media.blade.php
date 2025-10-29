@@ -153,7 +153,7 @@
                     } else {
                         toastr.success(
                             '{{ \App\CentralLogics\translate('Social Media inserted Successfully') }}.'
-                            );
+                        );
                     }
                     $('#name').val('');
                     $('#link').val('');
@@ -196,26 +196,37 @@
         });
         $(document).on('click', '.delete', function() {
             var id = $(this).attr("id");
-            if (confirm("{{ \App\CentralLogics\translate('Are you sure delete this social media') }}?")) {
-                $.ajaxSetup({
-                    headers: {
-                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                    }
-                });
-                $.ajax({
-                    url: "{{ route('admin.business-settings.social-media-delete') }}",
-                    method: 'POST',
-                    data: {
-                        id: id
-                    },
-                    success: function(data) {
-                        fetch_social_media();
-                        toastr.success(
-                            '{{ \App\CentralLogics\translate('Social media deleted Successfully') }}.'
+            Swal.fire({
+                title: '{{ translate('Are you sure?') }}',
+                text: "{{ \App\CentralLogics\translate('Are you sure delete this social media') }}?",
+                showCancelButton: true,
+                cancelButtonColor: '#3085d6',
+                confirmButtonColor: '#d33',
+                cancelButtonText: '{{ translate('No') }}',
+                confirmButtonText: '{{ translate('Yes') }}',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.value) {
+                    $.ajaxSetup({
+                        headers: {
+                            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                        }
+                    });
+                    $.ajax({
+                        url: "{{ route('admin.business-settings.social-media-delete') }}",
+                        method: 'POST',
+                        data: {
+                            id: id
+                        },
+                        success: function(data) {
+                            fetch_social_media();
+                            toastr.success(
+                                '{{ \App\CentralLogics\translate('Social media deleted Successfully') }}.'
                             );
-                    }
-                });
-            }
+                        }
+                    });
+                }
+            });
         });
         $(document).on('click', '.edit', function() {
             $('#update').show();
@@ -263,7 +274,7 @@
                 },
                 success: function() {
                     toastr.success(
-                    '{{ \App\CentralLogics\translate('Status updated successfully') }}');
+                        '{{ \App\CentralLogics\translate('Status updated successfully') }}');
                 }
             });
         });

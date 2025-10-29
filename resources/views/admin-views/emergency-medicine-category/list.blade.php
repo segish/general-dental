@@ -39,11 +39,11 @@
                                                     </a>
                                                     <form
                                                         action="{{ route('admin.emergency_medicine_categories.delete', $category->id) }}"
-                                                        method="post">
+                                                        method="post" id="delete-form-{{ $category->id }}">
                                                         @csrf
                                                         @method('DELETE')
-                                                        <button type="submit" class="btn btn-sm btn-outline-danger"
-                                                            onclick="return confirm('{{ translate('Are you sure?') }}')">
+                                                        <button type="button" class="btn btn-sm btn-outline-danger"
+                                                            onclick="deleteEmergencyMedicineCategory({{ $category->id }})">
                                                             <i class="tio-delete"></i>
                                                         </button>
                                                     </form>
@@ -63,3 +63,24 @@
         </div>
     </div>
 @endsection
+
+@push('script')
+    <script>
+        function deleteEmergencyMedicineCategory(id) {
+            Swal.fire({
+                title: '{{ translate('Are you sure?') }}',
+                text: '{{ translate('Are you sure?') }}',
+                showCancelButton: true,
+                cancelButtonColor: '#3085d6',
+                confirmButtonColor: '#d33',
+                cancelButtonText: '{{ translate('No') }}',
+                confirmButtonText: '{{ translate('Yes') }}',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.value) {
+                    document.getElementById('delete-form-' + id).submit();
+                }
+            });
+        }
+    </script>
+@endpush

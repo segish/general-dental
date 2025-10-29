@@ -147,6 +147,11 @@ class Visit extends Model
         return $this->hasMany(PatientProcedure::class);
     }
 
+    public function dentalCharts()
+    {
+        return $this->hasMany(DentalChart::class);
+    }
+
     // public function labReferrals()
     // {
     //     return $this->hasMany(LabReferral::class);
