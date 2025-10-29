@@ -1039,8 +1039,28 @@
                 backgroundColor: '#ffffff'
             });
 
+            // Reset undo history
+            undoHistory = [];
+
             // Save initial state
             saveState();
+
+            // Save state after any drawing/modification/deletion
+            dentalChartFabric.on('object:added', function() {
+                saveState();
+            });
+
+            dentalChartFabric.on('object:modified', function() {
+                saveState();
+            });
+
+            dentalChartFabric.on('object:removed', function() {
+                saveState();
+            });
+
+            dentalChartFabric.on('path:created', function() {
+                saveState();
+            });
 
             // Tool selection
             $('[data-tool]').on('click', function() {
@@ -1152,10 +1172,6 @@
                     break;
             }
 
-            // Save state after any drawing
-            dentalChartFabric.on('object:added', function() {
-                saveState();
-            });
         }
 
         // Create shapes
@@ -1217,7 +1233,8 @@
         // Undo functionality
         function saveState() {
             if (dentalChartFabric) {
-                undoHistory.push(JSON.stringify(dentalChartFabric));
+                const state = dentalChartFabric.toJSON();
+                undoHistory.push(JSON.stringify(state));
                 if (undoHistory.length > 20) {
                     undoHistory.shift();
                 }
@@ -1228,17 +1245,20 @@
             if (undoHistory.length > 1) {
                 undoHistory.pop(); // Remove current state
                 const previousState = undoHistory[undoHistory.length - 1];
-                dentalChartFabric.loadFromJSON(previousState, function() {
-                    dentalChartFabric.renderAll();
-                });
+                if (previousState) {
+                    dentalChartFabric.loadFromJSON(previousState, function() {
+                        dentalChartFabric.renderAll();
+                    });
+                }
+            } else {
             }
         }
 
         // Save chart data
         function saveChartData() {
             if (!dentalChartFabric) return;
-            const chartData = JSON.stringify(dentalChartFabric);
-            $('#chart_data_json').val(chartData);
+            const chartData = dentalChartFabric.toJSON();
+            $('#chart_data_json').val(JSON.stringify(chartData));
         }
 
         // Dental Chart Form Submission
@@ -1357,6 +1377,31 @@
                 });
             }
 
+            // Reset undo history
+            undoHistory = [];
+
+            // Save initial state after loading
+            setTimeout(function() {
+                saveState();
+            }, 100);
+
+            // Save state after any drawing/modification/deletion
+            dentalChartFabric.on('object:added', function() {
+                saveState();
+            });
+
+            dentalChartFabric.on('object:modified', function() {
+                saveState();
+            });
+
+            dentalChartFabric.on('object:removed', function() {
+                saveState();
+            });
+
+            dentalChartFabric.on('path:created', function() {
+                saveState();
+            });
+
             // Set up tools (same as create)
             $('[data-tool]').on('click', function() {
                 $('[data-tool]').removeClass('active');
@@ -1401,11 +1446,6 @@
                 undo();
             });
 
-            dentalChartFabric.on('object:added', function() {
-                saveState();
-            });
-
-            saveState();
             setTool();
         }
 
