@@ -1,0 +1,36 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     *
+     * @return void
+     */
+    public function up()
+    {
+        Schema::create('diagnosis_treatments', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('visit_id')->unique()->constrained('visits')->onDelete('cascade');
+            $table->string('diagnosis');
+            $table->text('treatment')->nullable();
+            $table->text('additional_notes')->nullable();
+            $table->foreignId('doctor_id')->constrained('admins')->onDelete('cascade')->nullable();
+            $table->timestamps();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     *
+     * @return void
+     */
+    public function down()
+    {
+        Schema::dropIfExists('diagnosis_treatments');
+    }
+};
