@@ -33,6 +33,7 @@ class DatabaseSeeder extends Seeder
             TestAttributeSeeder::class,
             WardAndBedSeeder::class,
             MedicalConditionSeeder::class,
+            MedicalRecordFieldSeeder::class,
             ServiceCategorySeeder::class,
             BillingServiceSeeder::class,
             MedicineCategorySeeder::class,

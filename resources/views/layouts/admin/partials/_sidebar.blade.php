@@ -206,6 +206,47 @@
                                 <small class="tio-more-horizontal nav-subtitle-replacer"></small>
                             </li>
 
+                            @if (auth('admin')->user()->can('condition_category.add-new') || auth('admin')->user()->can('condition_category.list'))
+                                <li
+                                    class="navbar-vertical-aside-has-menu {{ Request::is('admin/condition_category*') ? 'active' : '' }}">
+                                    <a class="js-navbar-vertical-aside-menu-link nav-link nav-link-toggle"
+                                        href="javascript:">
+                                        <i class="tio-top-security-outlined nav-icon"></i>
+                                        <span
+                                            class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">{{ \App\CentralLogics\translate('condition_categorys') }}</span>
+                                    </a>
+                                    <ul class="js-navbar-vertical-aside-submenu nav nav-sub"
+                                        style="display: {{ Request::is('admin/condition_category*') ? 'block' : 'none' }}">
+
+                                        @haspermission('condition_category.add-new', 'admin')
+                                            <li
+                                                class="nav-item {{ Request::is('admin/condition_category/add-new') ? 'active' : '' }}">
+                                                <a class="nav-link "
+                                                    href="{{ route('admin.condition_category.add-new') }}"
+                                                    title="{{ translate('add new condition_category') }}">
+                                                    <span class="tio-circle nav-indicator-icon"></span>
+                                                    <span class="text-truncate">{{ \App\CentralLogics\translate('add') }}
+                                                        {{ \App\CentralLogics\translate('new') }}</span>
+                                                </a>
+                                            </li>
+                                        @endhaspermission
+
+                                        @haspermission('condition_category.list', 'admin')
+                                            <li
+                                                class="nav-item {{ Request::is('admin/condition_category/list') ? 'active' : '' }}">
+                                                <a class="nav-link " href="{{ route('admin.condition_category.list') }}"
+                                                    title="{{ translate('condition_category list') }}">
+                                                    <span class="tio-circle nav-indicator-icon"></span>
+                                                    <span
+                                                        class="text-truncate">{{ \App\CentralLogics\translate('list') }}</span>
+                                                </a>
+                                            </li>
+                                        @endhaspermission
+
+                                    </ul>
+                                </li>
+                            @endif
+
                             @if (auth('admin')->user()->can('medical_condition.add-new') || auth('admin')->user()->can('medical_condition.list'))
                                 <li
                                     class="navbar-vertical-aside-has-menu {{ Request::is('admin/medical_condition*') ? 'active' : '' }}">
@@ -247,24 +288,24 @@
                                 </li>
                             @endif
 
-                            @if (auth('admin')->user()->can('condition_category.add-new') || auth('admin')->user()->can('condition_category.list'))
+                            @if (auth('admin')->user()->can('medical_record_field.add-new') || auth('admin')->user()->can('medical_record_field.list'))
                                 <li
-                                    class="navbar-vertical-aside-has-menu {{ Request::is('admin/condition_category*') ? 'active' : '' }}">
+                                    class="navbar-vertical-aside-has-menu {{ Request::is('admin/medical_record_field*') ? 'active' : '' }}">
                                     <a class="js-navbar-vertical-aside-menu-link nav-link nav-link-toggle"
                                         href="javascript:">
                                         <i class="tio-top-security-outlined nav-icon"></i>
                                         <span
-                                            class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">{{ \App\CentralLogics\translate('condition_categorys') }}</span>
+                                            class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">{{ \App\CentralLogics\translate('medical_record_fields') }}</span>
                                     </a>
                                     <ul class="js-navbar-vertical-aside-submenu nav nav-sub"
-                                        style="display: {{ Request::is('admin/condition_category*') ? 'block' : 'none' }}">
+                                        style="display: {{ Request::is('admin/medical_record_field*') ? 'block' : 'none' }}">
 
-                                        @haspermission('condition_category.add-new', 'admin')
+                                        @haspermission('medical_record_field.add-new', 'admin')
                                             <li
-                                                class="nav-item {{ Request::is('admin/condition_category/add-new') ? 'active' : '' }}">
+                                                class="nav-item {{ Request::is('admin/medical_record_field/add-new') ? 'active' : '' }}">
                                                 <a class="nav-link "
-                                                    href="{{ route('admin.condition_category.add-new') }}"
-                                                    title="{{ translate('add new condition_category') }}">
+                                                    href="{{ route('admin.medical_record_field.add-new') }}"
+                                                    title="{{ translate('add new medical_record_field') }}">
                                                     <span class="tio-circle nav-indicator-icon"></span>
                                                     <span class="text-truncate">{{ \App\CentralLogics\translate('add') }}
                                                         {{ \App\CentralLogics\translate('new') }}</span>
@@ -272,11 +313,11 @@
                                             </li>
                                         @endhaspermission
 
-                                        @haspermission('condition_category.list', 'admin')
+                                        @haspermission('medical_record_field.list', 'admin')
                                             <li
-                                                class="nav-item {{ Request::is('admin/condition_category/list') ? 'active' : '' }}">
-                                                <a class="nav-link " href="{{ route('admin.condition_category.list') }}"
-                                                    title="{{ translate('condition_category list') }}">
+                                                class="nav-item {{ Request::is('admin/medical_record_field/list') ? 'active' : '' }}">
+                                                <a class="nav-link " href="{{ route('admin.medical_record_field.list') }}"
+                                                    title="{{ translate('medical_record_field list') }}">
                                                     <span class="tio-circle nav-indicator-icon"></span>
                                                     <span
                                                         class="text-truncate">{{ \App\CentralLogics\translate('list') }}</span>

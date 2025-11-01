@@ -73,6 +73,15 @@ Route::group(['namespace' => 'Admin', 'as' => 'admin.'], function () {
             Route::get('view/{id}', 'MedicalRecordController@view')->name('view');
         });
 
+        Route::group(['prefix' => 'medical-record-field', 'as' => 'medical_record_field.'], function () {
+            Route::get('add-new', 'MedicalRecordFieldController@index')->name('add-new');
+            Route::post('store', 'MedicalRecordFieldController@store')->name('store');
+            Route::get('edit/{id}', 'MedicalRecordFieldController@edit')->name('edit');
+            Route::post('update/{id}', 'MedicalRecordFieldController@update')->name('update');
+            Route::get('list', 'MedicalRecordFieldController@list')->name('list');
+            Route::delete('delete/{id}', 'MedicalRecordFieldController@destroy')->name('delete');
+        });
+
         Route::group(['prefix' => 'dental-chart', 'as' => 'dental_chart.'], function () {
             Route::get('add-new', 'DentalChartController@index')->name('add-new');
             Route::post('store', 'DentalChartController@store')->name('store');

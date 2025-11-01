@@ -16,10 +16,6 @@ return new class extends Migration
         Schema::create('medical_records', function (Blueprint $table) {
             $table->id();
             $table->foreignId('visit_id')->unique()->constrained('visits')->onDelete('cascade');
-            $table->text('chief_complaint'); // Example: "Pneumonia"
-            $table->text('symptoms')->nullable(); // Example: "Antibiotics for 7 days"
-            $table->text('medical_history')->nullable(); // Example: "Antibiotics for 7 days"
-            $table->text('additional_notes')->nullable();
             $table->foreignId('doctor_id')->constrained('admins')->onDelete('cascade')->nullable();
             $table->timestamps();
         });
