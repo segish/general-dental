@@ -52,30 +52,26 @@
                     <div class="tab-pane fade show active p-3" id="medical-record" role="tabpanel"
                         aria-labelledby="medical-record-tab">
                         <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <strong>Chief Complaint:</strong>
-                                <p class="mb-0 text-muted">
-                                    {{ $visit->medicalRecord->chief_complaint ?? 'Not Specified' }}
-                                </p>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <strong>Symptoms:</strong>
-                                <p class="mb-0 text-muted">
-                                    {{ $visit->medicalRecord->symptoms ?? 'Not Specified' }}
-                                </p>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <strong>Medical History:</strong>
-                                <p class="mb-0 text-muted">
-                                    {{ $visit->medicalRecord->medical_history ?? 'Not Specified' }}
-                                </p>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <strong>Additional Notes:</strong>
-                                <p class="mb-0 text-muted">
-                                    {{ $visit->medicalRecord->additional_notes ?? 'Not Specified' }}
-                                </p>
-                            </div>
+                            @if (isset($medicalRecordFields) && $medicalRecordFields->count() > 0)
+                                @php
+                                    $fieldValues = [];
+                                    if ($visit->medicalRecord && $visit->medicalRecord->values) {
+                                        foreach ($visit->medicalRecord->values->load('field') as $value) {
+                                            if ($value->field) {
+                                                $fieldValues[$value->field->short_code] = $value->decoded_value;
+                                            }
+                                        }
+                                    }
+                                @endphp
+                                @include('admin-views.patients.partials.display-medical-record-fields', [
+                                    'medicalRecordFields' => $medicalRecordFields,
+                                    'values' => $fieldValues,
+                                ])
+                            @else
+                                <div class="col-12">
+                                    <p class="text-muted">{{ translate('No medical record fields defined.') }}</p>
+                                </div>
+                            @endif
                             @if (auth('admin')->user()->can('medical_record.edit'))
                                 <div class="col-12 text-right">
                                     <button type="button" class="btn btn-primary btn-sm"

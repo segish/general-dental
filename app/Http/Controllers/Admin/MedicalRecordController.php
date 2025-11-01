@@ -4,8 +4,11 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\MedicalRecord;
+use App\Models\MedicalRecordField;
+use App\Models\MedicalRecordValue;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 
 class MedicalRecordController extends Controller
 {
@@ -28,21 +31,91 @@ class MedicalRecordController extends Controller
         $validator = Validator::make($request->all(), [
             'visit_id' => 'required|exists:visits,id',
             'doctor_id' => 'required|exists:admins,id',
-            'chief_complaint' => 'required|string',
-            'symptoms' => 'nullable|string',
-            'medical_history' => 'nullable|string',
-            'additional_notes' => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
+        // Get all active fields
+        $fields = MedicalRecordField::active()->ordered()->with('options')->get();
+
+        // Build dynamic validation rules
+        $dynamicRules = [];
+        foreach ($fields as $field) {
+            $ruleKey = 'field_' . $field->short_code;
+            if ($field->is_required) {
+                $dynamicRules[$ruleKey] = 'required';
+            } else {
+                $dynamicRules[$ruleKey] = 'nullable';
+            }
+
+            // Add validation for array types
+            if (in_array($field->field_type, ['multiselect', 'checkbox'])) {
+                $dynamicRules[$ruleKey] .= '|array';
+            }
+        }
+
+        $validator = Validator::make($request->all(), array_merge([
+            'visit_id' => 'required|exists:visits,id',
+            'doctor_id' => 'required|exists:admins,id',
+        ], $dynamicRules));
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
         try {
-            $this->medicalRecord->create($request->all());
-            return response()->json(['message' => 'Medical record created successfully', 'visit_id' => $request->visit_id], 200);
+            DB::beginTransaction();
+
+            // Check if medical record already exists for this visit
+            $medicalRecord = MedicalRecord::where('visit_id', $request->visit_id)->first();
+
+            if (!$medicalRecord) {
+                $medicalRecord = MedicalRecord::create([
+                    'visit_id' => $request->visit_id,
+                    'doctor_id' => $request->doctor_id,
+                ]);
+            } else {
+                // Update doctor if changed
+                $medicalRecord->update(['doctor_id' => $request->doctor_id]);
+            }
+
+            // Save field values
+            foreach ($fields as $field) {
+                $fieldKey = 'field_' . $field->short_code;
+                $value = $request->input($fieldKey);
+
+                if ($value !== null) {
+                    // Handle array values (multiselect, checkbox)
+                    if (is_array($value)) {
+                        $value = json_encode($value);
+                    }
+
+                    MedicalRecordValue::updateOrCreate(
+                        [
+                            'medical_record_id' => $medicalRecord->id,
+                            'medical_record_field_id' => $field->id,
+                        ],
+                        [
+                            'value' => $value,
+                        ]
+                    );
+                }
+            }
+
+            DB::commit();
+            return response()->json([
+                'success' => true,
+                'message' => 'Medical record created successfully',
+                'visit_id' => $request->visit_id
+            ], 200);
         } catch (\Exception $e) {
-            return response()->json(['message' => 'Error creating medical record: ' . $e->getMessage()], 500);
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Error creating medical record: ' . $e->getMessage()
+            ], 500);
         }
     }
 
@@ -54,10 +127,24 @@ class MedicalRecordController extends Controller
     public function edit($id)
     {
         try {
-            $medicalRecord = $this->medicalRecord->findOrFail($id);
+            $medicalRecord = $this->medicalRecord->with(['values.field.options'])->findOrFail($id);
+
+            // Build data array with field values
+            $data = [
+                'id' => $medicalRecord->id,
+                'visit_id' => $medicalRecord->visit_id,
+                'doctor_id' => $medicalRecord->doctor_id,
+            ];
+
+            // Add field values
+            foreach ($medicalRecord->values as $value) {
+                $fieldKey = 'field_' . $value->field->short_code;
+                $data[$fieldKey] = $value->decoded_value;
+            }
+
             return response()->json([
                 'success' => true,
-                'data' => $medicalRecord
+                'data' => $data
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -69,26 +156,72 @@ class MedicalRecordController extends Controller
 
     public function update(Request $request, $id)
     {
-        $validator = Validator::make($request->all(), [
-            'chief_complaint' => 'required|string',
-            'symptoms' => 'nullable|string',
-            'medical_history' => 'nullable|string',
-            'additional_notes' => 'nullable|string',
-        ]);
+        $medicalRecord = $this->medicalRecord->findOrFail($id);
+
+        // Get all active fields
+        $fields = MedicalRecordField::active()->ordered()->with('options')->get();
+
+        // Build dynamic validation rules
+        $dynamicRules = [];
+        foreach ($fields as $field) {
+            $ruleKey = 'field_' . $field->short_code;
+            if ($field->is_required) {
+                $dynamicRules[$ruleKey] = 'required';
+            } else {
+                $dynamicRules[$ruleKey] = 'nullable';
+            }
+
+            // Add validation for array types
+            if (in_array($field->field_type, ['multiselect', 'checkbox'])) {
+                $dynamicRules[$ruleKey] .= '|array';
+            }
+        }
+
+        $validator = Validator::make($request->all(), $dynamicRules);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
         try {
-            $medicalRecord = $this->medicalRecord->findOrFail($id);
-            $medicalRecord->update($request->all());
+            DB::beginTransaction();
+
+            // Update field values
+            foreach ($fields as $field) {
+                $fieldKey = 'field_' . $field->short_code;
+                $value = $request->input($fieldKey);
+
+                if ($value !== null) {
+                    // Handle array values (multiselect, checkbox)
+                    if (is_array($value)) {
+                        $value = json_encode($value);
+                    }
+
+                    MedicalRecordValue::updateOrCreate(
+                        [
+                            'medical_record_id' => $medicalRecord->id,
+                            'medical_record_field_id' => $field->id,
+                        ],
+                        [
+                            'value' => $value,
+                        ]
+                    );
+                } else {
+                    // Remove value if null
+                    MedicalRecordValue::where('medical_record_id', $medicalRecord->id)
+                        ->where('medical_record_field_id', $field->id)
+                        ->delete();
+                }
+            }
+
+            DB::commit();
             return response()->json([
                 'success' => true,
                 'message' => 'Medical record updated successfully',
                 'visit_id' => $medicalRecord->visit_id
             ]);
         } catch (\Exception $e) {
+            DB::rollBack();
             return response()->json([
                 'success' => false,
                 'message' => 'Error updating medical record: ' . $e->getMessage()

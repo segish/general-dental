@@ -92,36 +92,17 @@
                     <input type="text" hidden name="doctor_id" value="{{ auth('admin')->user()->id }}">
 
                     @csrf
-                    <div class="form-group">
-                        <label class="input-label">{{ translate('Chief Complaint') }}<span
-                                class="text-danger">*</span></label>
-                        <textarea name="chief_complaint" class="form-control" required></textarea>
-                    </div>
 
-                    {{-- <div class="form-group">
-                        <label class="input-label">{{ translate('Chief Complaint') }}<span
-                                class="text-danger">*</span></label>
-                        <select class="js-select2-custom form-control" name="chief_complaint"
-                            id="chief_complaint">
-                            <option selected disabled>Select Medical Record</option>
-                            @foreach ($medicalRecords as $record)
-                                <option value="{{ $record->name }}">{{ $record->name }}</option>
-                            @endforeach
-                        </select>
-                    </div> --}}
+                    @if (isset($medicalRecordFields) && $medicalRecordFields->count() > 0)
+                        @include('admin-views.patients.partials.dynamic-medical-record-fields', [
+                            'values' => [],
+                        ])
+                    @else
+                        <div class="alert alert-info">
+                            {{ translate('No medical record fields defined. Please add fields first.') }}
+                        </div>
+                    @endif
 
-                    <div class="form-group">
-                        <label class="input-label">{{ translate('Symptoms') }}</label>
-                        <textarea name="symptoms" class="form-control"></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label class="input-label">{{ translate('Medical History') }}</label>
-                        <textarea name="medical_history" class="form-control"></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label class="input-label">{{ translate('Additional Notes') }}</label>
-                        <textarea name="additional_notes" class="form-control"></textarea>
-                    </div>
                     <div class="d-flex justify-content-end">
                         <button type="submit" class="btn btn-primary">{{ translate('Submit') }}</button>
                     </div>
@@ -141,26 +122,16 @@
                     <h5 class="modal-title">{{ translate('Edit Medical Record') }}</h5>
                     <button type="button" class="close" data-dismiss="modal"><span>×</span></button>
                 </div>
-                <div class="modal-body">
-                    <div class="form-group">
-                        <label>{{ translate('Chief Complaint') }}</label>
-                        <textarea name="chief_complaint" class="form-control" rows="3" required></textarea>
-                    </div>
-
-                    <div class="form-group">
-                        <label>{{ translate('Symptoms') }}</label>
-                        <textarea name="symptoms" class="form-control" rows="3"></textarea>
-                    </div>
-
-                    <div class="form-group">
-                        <label>{{ translate('Medical History') }}</label>
-                        <textarea name="medical_history" class="form-control" rows="3"></textarea>
-                    </div>
-
-                    <div class="form-group">
-                        <label>{{ translate('Additional Notes') }}</label>
-                        <textarea name="additional_notes" class="form-control" rows="3"></textarea>
-                    </div>
+                <div class="modal-body" id="edit-medical-record-fields">
+                    @if (isset($medicalRecordFields) && $medicalRecordFields->count() > 0)
+                        @include('admin-views.patients.partials.dynamic-medical-record-fields', [
+                            'values' => [],
+                        ])
+                    @else
+                        <div class="alert alert-info">
+                            {{ translate('No medical record fields defined.') }}
+                        </div>
+                    @endif
 
                     <div class="d-flex justify-content-end">
                         <button type="submit" class="btn btn-primary">{{ translate('Update') }}</button>

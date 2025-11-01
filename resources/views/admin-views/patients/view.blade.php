@@ -772,6 +772,22 @@
         $(document).on('click', '#add_new_medical_record', function() {
             var visitId = $(this).data('visit-id');
             $('#medical_test_form input[name="visit_id"]').val(visitId);
+
+            // Initialize select2 for multiselect fields
+            $('#add-medical-record select.js-select2-custom').each(function() {
+                if (!$(this).hasClass('select2-hidden-accessible')) {
+                    $.HSCore.components.HSSelect2.init($(this));
+                }
+            });
+        });
+
+        // Initialize select2 when modal is shown
+        $('#add-medical-record').on('shown.bs.modal', function() {
+            $('#add-medical-record select.js-select2-custom').each(function() {
+                if (!$(this).hasClass('select2-hidden-accessible')) {
+                    $.HSCore.components.HSSelect2.init($(this));
+                }
+            });
         });
 
         $('#medical_test_form').on('submit', function(event) {
@@ -2974,20 +2990,75 @@
                     if (response.success) {
                         const record = response.data;
                         $('#editMedicalRecordModal input[name="id"]').val(record.id);
-                        $('#editMedicalRecordModal textarea[name="chief_complaint"]').val(record
-                            .chief_complaint);
-                        $('#editMedicalRecordModal textarea[name="symptoms"]').val(record.symptoms);
-                        $('#editMedicalRecordModal textarea[name="medical_history"]').val(record
-                            .medical_history);
-                        $('#editMedicalRecordModal textarea[name="additional_notes"]').val(record
-                            .additional_notes);
+
+                        // Clear existing field values
+                        $('#edit-medical-record-fields input, #edit-medical-record-fields textarea, #edit-medical-record-fields select')
+                            .each(function() {
+                                if ($(this).is(':checkbox')) {
+                                    $(this).prop('checked', false);
+                                } else if ($(this).is('select') && $(this).attr('multiple')) {
+                                    $(this).val(null).trigger('change');
+                                } else {
+                                    $(this).val('');
+                                }
+                            });
+
+                        // Populate dynamic field values
+                        @if (isset($medicalRecordFields))
+                            @foreach ($medicalRecordFields as $field)
+                                @php
+                                    $fieldKey = 'field_' . $field->short_code;
+                                    $jsFieldKey = 'field_' . $field->short_code;
+                                @endphp
+                                @if ($field->field_type == 'checkbox' || $field->field_type == 'multiselect')
+                                    @php
+                                        $jsFieldKeyEscaped = str_replace('_', '', $jsFieldKey);
+                                    @endphp
+                                    if (record.{{ $jsFieldKey }} && Array.isArray(record
+                                            .{{ $jsFieldKey }})) {
+                                        $('#edit-medical-record-fields input[name="{{ $fieldKey }}[]"]')
+                                            .each(function() {
+                                                if (record.{{ $jsFieldKey }}.includes($(this).val())) {
+                                                    $(this).prop('checked', true);
+                                                }
+                                            });
+                                        var selectField = $(
+                                            '#edit-medical-record-fields select[name="{{ $fieldKey }}[]"]'
+                                            );
+                                        if (selectField.length) {
+                                            selectField.val(record.{{ $jsFieldKey }}).trigger('change');
+                                        }
+                                    }
+                                @else
+                                    if (record.{{ $jsFieldKey }} !== undefined && record
+                                        .{{ $jsFieldKey }} !== null) {
+                                        var fieldElement = $(
+                                            '#edit-medical-record-fields [name="{{ $fieldKey }}"]');
+                                        if (fieldElement.length) {
+                                            fieldElement.val(record.{{ $jsFieldKey }});
+                                            @if ($field->field_type == 'select')
+                                                fieldElement.trigger('change');
+                                            @endif
+                                        }
+                                    }
+                                @endif
+                            @endforeach
+                        @endif
+
+                        // Initialize select2 for multiselect fields if needed
+                        $('#edit-medical-record-fields select.js-select2-custom').each(function() {
+                            if (!$(this).hasClass('select2-hidden-accessible')) {
+                                $.HSCore.components.HSSelect2.init($(this));
+                            }
+                        });
+
                         $('#editMedicalRecordModal').modal('show');
                     } else {
                         toastr.error(response.message);
                     }
                 },
                 error: function(xhr) {
-                    toastr.error(xhr.responseJSON.message);
+                    toastr.error(xhr.responseJSON ? xhr.responseJSON.message : 'Error loading medical record');
                 },
                 complete: function() {
                     enableButton(button, originalText);
@@ -3001,6 +3072,10 @@
             const id = formData.get('id');
             const submitButton = $(this).find('button[type="submit"]');
             const originalText = disableButton(submitButton);
+
+            // Remove previous error highlights/messages if any
+            $('#edit-medical-record-fields .is-invalid').removeClass('is-invalid');
+            $('#edit-medical-record-fields .invalid-feedback').remove();
 
             $.ajax({
                 url: "{{ route('admin.medical_record.update', '') }}/" + id,
@@ -3020,7 +3095,44 @@
                     }
                 },
                 error: function(xhr) {
-                    toastr.error(xhr.responseJSON.message);
+                    if (xhr.status === 422 && xhr.responseJSON && xhr.responseJSON.errors) {
+                        let errors = xhr.responseJSON.errors;
+                        let firstErrorField = null;
+                        $.each(errors, function(field, messages) {
+                            // Try field variations for select, array, etc.
+                            let fieldSelector = '[name="' + field + '"]';
+                            let fieldSelectorArray = '[name="' + field + '[]"]';
+                            let fieldElement = $('#edit-medical-record-fields').find(fieldSelector);
+                            if (!fieldElement.length) {
+                                fieldElement = $('#edit-medical-record-fields').find(fieldSelectorArray);
+                            }
+                            // Add invalid class and feedback if found
+                            if (fieldElement.length) {
+                                fieldElement.addClass('is-invalid');
+                                // Only add feedback after input if not already present
+                                if (!fieldElement.next('.invalid-feedback').length) {
+                                    fieldElement.after('<div class="invalid-feedback">' + messages[0] + '</div>');
+                                }
+                                if (!firstErrorField) {
+                                    firstErrorField = fieldElement[0];
+                                }
+                            }
+                        });
+                        // Focus first field with error
+                        if (firstErrorField) {
+                            firstErrorField.scrollIntoView({ behavior: "smooth", block: "center" });
+                            $(firstErrorField).focus();
+                        }
+                        // Show toastr for first error or a summary
+                        let errorFields = Object.values(errors).flat();
+                        if(errorFields.length > 0){
+                            toastr.error(errorFields[0]);
+                        } else {
+                            toastr.error('Please correct the form errors.');
+                        }
+                    } else {
+                        toastr.error(xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : 'Error loading medical record');
+                    }
                 },
                 complete: function() {
                     setTimeout(function() {

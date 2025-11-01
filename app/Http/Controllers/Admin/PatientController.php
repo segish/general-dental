@@ -303,6 +303,7 @@ class PatientController extends Controller
             })
             ->get();
         $visitQuery = $patient->visits()->with([
+            'medicalRecord.values.field.options',
             'laboratoryRequest.testResults2.attributes' => function ($query) {
                 $query->select('id', 'attribute_id', 'test_result_id', 'result_value', 'comments'); // Select only necessary columns
                 $query->with([
@@ -436,6 +437,9 @@ class PatientController extends Controller
             }
         }
 
+        // Get medical record fields
+        $medicalRecordFields = \App\Models\MedicalRecordField::active()->ordered()->with('options')->get();
+
         return view('admin-views.patients.view', compact(
             'patient',
             'visits',
@@ -457,6 +461,7 @@ class PatientController extends Controller
             'currentWeek',
             'doctors',
             'labTechs',
+            'medicalRecordFields',
             'serviceCategories',
             'medicineCategories',
             'doseIntervals',
