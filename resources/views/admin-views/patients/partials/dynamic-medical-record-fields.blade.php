@@ -55,7 +55,8 @@
                 @endforeach
             </select>
         @elseif($field->field_type == 'checkbox')
-            <div class="checkbox-group">
+            <div class="checkbox-group border rounded p-3"
+                style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;">
                 @foreach ($field->options as $option)
                     @php
                         $checked = false;

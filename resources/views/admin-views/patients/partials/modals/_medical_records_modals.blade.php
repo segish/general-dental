@@ -78,7 +78,7 @@
 
 
 <div class="modal fade" id="add-medical-record" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">{{ translate('Add New Medical Record') }}</h5>
@@ -113,7 +113,7 @@
 </div>
 
 <div class="modal fade" id="editMedicalRecordModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <form id="edit_medical_record_form" method="POST" action="javascript:">
                 @csrf
