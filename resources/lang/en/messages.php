@@ -3416,4 +3416,6 @@
   'Edit Dental Chart' => 'Edit Dental Chart',
   'Update Chart' => 'Update Chart',
   'Delete' => 'Delete',
+  'View' => 'View',
+  'View Dental Chart' => 'View Dental Chart',
 );

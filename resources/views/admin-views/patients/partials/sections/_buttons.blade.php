@@ -1031,13 +1031,30 @@
             // Get container width for responsive canvas
             const container = canvasElement.parentElement;
             const containerWidth = container.clientWidth - 20; // Subtract padding
-            const calculatedWidth = Math.max(800, containerWidth); // Minimum 800px width
+
+            // Check chart type for periodontal chart (special dimensions)
+            const chartType = $('#chart_type').val();
+            let canvasWidth, canvasHeight;
+
+            if (chartType === 'periodontal') {
+                // Periodontal chart specific dimensions to match image size (1024x1280)
+                canvasWidth = 1024;
+                canvasHeight = 1280;
+            } else {
+                // Default dimensions for other chart types
+                canvasWidth = Math.max(800, containerWidth); // Minimum 800px width
+                canvasHeight = 600;
+            }
 
             dentalChartFabric = new fabric.Canvas('dentalChartCanvas', {
-                width: calculatedWidth,
-                height: 600,
+                width: canvasWidth,
+                height: canvasHeight,
                 backgroundColor: '#ffffff'
             });
+
+            // Update canvas element size to match fabric canvas
+            canvasElement.style.width = canvasWidth + 'px';
+            canvasElement.style.height = canvasHeight + 'px';
 
             // Reset undo history
             undoHistory = [];
@@ -1117,6 +1134,44 @@
                 } else {
                     $('#image_upload_group').hide();
                 }
+
+                // Resize canvas based on chart type
+                if (dentalChartFabric) {
+                    let newWidth, newHeight;
+
+                    if (chartType === 'periodontal') {
+                        // Periodontal chart dimensions (1024x1280)
+                        newWidth = 1024;
+                        newHeight = 1280;
+                    } else {
+                        // Default dimensions for other chart types
+                        const container = document.getElementById('dentalChartCanvas').parentElement;
+                        const containerWidth = container.clientWidth - 20;
+                        newWidth = Math.max(800, containerWidth);
+                        newHeight = 600;
+                    }
+
+                    // Resize canvas
+                    dentalChartFabric.setDimensions({
+                        width: newWidth,
+                        height: newHeight
+                    });
+
+                    // Update canvas element size
+                    const canvasElement = document.getElementById('dentalChartCanvas');
+                    canvasElement.style.width = newWidth + 'px';
+                    canvasElement.style.height = newHeight + 'px';
+
+                    // Load periodontal chart template if selected
+                    if (chartType === 'periodontal') {
+                        loadPeriodontalChartTemplate();
+                    } else if (chartType !== 'image_annotation') {
+                        // Clear background if switching away from periodontal (unless it's image annotation)
+                        dentalChartFabric.setBackgroundImage('', dentalChartFabric.renderAll.bind(
+                            dentalChartFabric));
+                        saveState();
+                    }
+                }
             });
 
             // Image upload handler
@@ -1138,6 +1193,47 @@
             });
 
             setTool();
+        }
+
+        // Load periodontal chart template
+        function loadPeriodontalChartTemplate() {
+            if (!dentalChartFabric) return;
+
+            const templateUrl = '{{ asset('assets/admin/img/dental-templates/periodontal-chart.png') }}';
+
+            // Clear canvas first
+            dentalChartFabric.clear();
+            dentalChartFabric.backgroundColor = '#ffffff';
+
+            // Load the periodontal chart template as background image
+            fabric.Image.fromURL(templateUrl, function(img) {
+                if (img) {
+                    // Image dimensions are 1024x1280, canvas should match exactly
+                    // No scaling needed - just place at 0,0
+                    img.set({
+                        left: 0,
+                        top: 0,
+                        selectable: false,
+                        evented: false,
+                        scaleX: 1,
+                        scaleY: 1
+                    });
+
+                    dentalChartFabric.setBackgroundImage(img, function() {
+                        dentalChartFabric.renderAll();
+                        saveState();
+                    }, {
+                        crossOrigin: 'anonymous'
+                    });
+                } else {
+                    // If image fails to load, show a message
+                    console.error('Periodontal chart template not found. Please ensure the image is at: ' +
+                        templateUrl);
+                    toastr.warning('Periodontal chart template not found. Please contact administrator.');
+                }
+            }, {
+                crossOrigin: 'anonymous'
+            });
         }
 
         // Set drawing tool
@@ -1250,8 +1346,7 @@
                         dentalChartFabric.renderAll();
                     });
                 }
-            } else {
-            }
+            } else {}
         }
 
         // Save chart data
@@ -1310,6 +1405,212 @@
             });
         });
 
+        // View Dental Chart
+        function viewDentalChart(chartId) {
+            $.ajax({
+                url: '{{ route('admin.dental_chart.edit', '') }}/' + chartId,
+                type: 'GET',
+                success: function(response) {
+                    if (response.success) {
+                        const chart = response.data;
+
+                        // Set modal title
+                        $('#viewDentalChartLabel').text(chart.title ? chart.title : 'View Dental Chart');
+
+                        // Set chart info
+                        const chartInfo = `
+                            <div class="text-left">
+                                <h6 class="mb-2"><strong>${chart.title ? chart.title : chart.chart_type}</strong>
+                                    <span class="badge badge-info">${chart.chart_type}</span>
+                                </h6>
+                                ${chart.notes ? '<p class="mb-1 text-muted"><strong>Notes:</strong> ' + chart.notes + '</p>' : ''}
+                                <small class="text-muted">Created on ${new Date(chart.created_at).toLocaleString()}</small>
+                            </div>
+                        `;
+                        $('#viewChartInfo').html(chartInfo);
+
+                        // Initialize view canvas when modal opens
+                        $('#viewDentalChartModal').off('shown.bs.modal').on('shown.bs.modal', function() {
+                            // Small delay to ensure modal is fully rendered
+                            setTimeout(function() {
+                                initializeViewDentalChartCanvas(chart);
+                            }, 100);
+                        });
+
+                        $('#viewDentalChartModal').modal('show');
+                    } else {
+                        toastr.error(response.message);
+                    }
+                },
+                error: function(xhr) {
+                    toastr.error('Error loading chart data.');
+                }
+            });
+        }
+
+        // Initialize view canvas
+        function initializeViewDentalChartCanvas(chart) {
+            const canvasElement = document.getElementById('viewDentalChartCanvas');
+            if (!canvasElement) return;
+
+            // Determine canvas dimensions based on chart type
+            let originalWidth, originalHeight;
+
+            if (chart.chart_type === 'periodontal') {
+                originalWidth = 1024;
+                originalHeight = 1280;
+            } else {
+                originalWidth = 800;
+                originalHeight = 600;
+            }
+
+            // Get the actual modal body width after modal is shown
+            const modalBody = canvasElement.closest('.modal-body');
+
+            // Get actual dimensions of modal content area
+            // Use modal body width minus padding (40px on each side = 80px total, plus some extra margin)
+            const modalContentWidth = modalBody ? (modalBody.clientWidth - 100) : (window.innerWidth * 0.9 - 100);
+
+            // Calculate scale based on width only - fill modal width with padding
+            const scale = modalContentWidth / originalWidth;
+
+            // Calculate canvas dimensions maintaining aspect ratio
+            const canvasWidth = modalContentWidth; // Use full available width
+            const canvasHeight = originalHeight * scale; // Height based on aspect ratio
+
+            // Create or clear existing canvas
+            if (window.viewChartCanvas) {
+                window.viewChartCanvas.dispose();
+            }
+
+            window.viewChartCanvas = new fabric.Canvas('viewDentalChartCanvas', {
+                width: canvasWidth,
+                height: canvasHeight,
+                backgroundColor: '#ffffff',
+                selection: false, // Disable selection in view mode
+                interactive: false // Disable interactions in view mode
+            });
+
+            // Set canvas element size
+            // Use 100% width to fill container, height in pixels to maintain aspect ratio
+            canvasElement.style.width = '100%';
+            canvasElement.style.height = canvasHeight + 'px';
+
+            // Set the actual canvas internal width/height to match display
+            // This ensures Fabric.js renders correctly at full width
+            canvasElement.width = canvasWidth;
+            canvasElement.height = canvasHeight;
+
+            // Also set the parent container to full width
+            const canvasContainer = canvasElement.parentElement;
+            if (canvasContainer) {
+                canvasContainer.style.width = '100%';
+                canvasContainer.style.display = 'block';
+            }
+
+            // Load chart data and scale it
+            if (chart.chart_data) {
+                let chartData = chart.chart_data;
+
+                // If it's a string, parse it; if it's already an object, use it directly
+                if (typeof chartData === 'string') {
+                    chartData = JSON.parse(chartData);
+                }
+
+                // Scale the chart data before loading
+                scaleChartData(chartData, scale);
+
+                // Update canvas dimensions in chart data
+                chartData.width = canvasWidth;
+                chartData.height = canvasHeight;
+
+                // Load background image first if exists (for image_annotation type)
+                if (chart.image_path) {
+                    const imageUrl = '{{ asset('storage') }}/' + chart.image_path;
+                    fabric.Image.fromURL(imageUrl, function(img) {
+                        img.scale(scale);
+                        window.viewChartCanvas.setBackgroundImage(img, function() {
+                            // Then load chart data
+                            window.viewChartCanvas.loadFromJSON(chartData, function() {
+                                window.viewChartCanvas.renderAll();
+                            });
+                        }, {
+                            crossOrigin: 'anonymous'
+                        });
+                    }, {
+                        crossOrigin: 'anonymous'
+                    });
+                } else if (chart.chart_type === 'periodontal') {
+                    // Load periodontal template if it's a periodontal chart
+                    const templateUrl = '{{ asset('assets/admin/img/dental-templates/periodontal-chart.png') }}';
+                    fabric.Image.fromURL(templateUrl, function(img) {
+                        img.scale(scale);
+                        window.viewChartCanvas.setBackgroundImage(img, function() {
+                            // Then load chart data
+                            window.viewChartCanvas.loadFromJSON(chartData, function() {
+                                window.viewChartCanvas.renderAll();
+                            });
+                        }, {
+                            crossOrigin: 'anonymous'
+                        });
+                    }, {
+                        crossOrigin: 'anonymous'
+                    });
+                } else {
+                    // Load chart data directly
+                    window.viewChartCanvas.loadFromJSON(chartData, function() {
+                        window.viewChartCanvas.renderAll();
+                    });
+                }
+            } else {
+                window.viewChartCanvas.renderAll();
+            }
+        }
+
+        // Helper function to scale chart data
+        function scaleChartData(chartData, scale) {
+            // Scale all objects
+            if (chartData.objects && Array.isArray(chartData.objects)) {
+                chartData.objects.forEach(function(obj) {
+                    if (obj.left !== undefined) obj.left = (obj.left || 0) * scale;
+                    if (obj.top !== undefined) obj.top = (obj.top || 0) * scale;
+                    if (obj.scaleX !== undefined) obj.scaleX = (obj.scaleX || 1) * scale;
+                    if (obj.scaleY !== undefined) obj.scaleY = (obj.scaleY || 1) * scale;
+                    if (obj.width !== undefined) obj.width = (obj.width || 0) * scale;
+                    if (obj.height !== undefined) obj.height = (obj.height || 0) * scale;
+                    if (obj.strokeWidth !== undefined) obj.strokeWidth = (obj.strokeWidth || 1) * scale;
+                    if (obj.fontSize !== undefined) obj.fontSize = (obj.fontSize || 16) * scale;
+                    if (obj.radius !== undefined) obj.radius = (obj.radius || 0) * scale;
+                    if (obj.rx !== undefined) obj.rx = (obj.rx || 0) * scale;
+                    if (obj.ry !== undefined) obj.ry = (obj.ry || 0) * scale;
+                });
+            }
+
+            // Scale background image if exists
+            if (chartData.backgroundImage) {
+                if (chartData.backgroundImage.scaleX !== undefined) {
+                    chartData.backgroundImage.scaleX = (chartData.backgroundImage.scaleX || 1) * scale;
+                }
+                if (chartData.backgroundImage.scaleY !== undefined) {
+                    chartData.backgroundImage.scaleY = (chartData.backgroundImage.scaleY || 1) * scale;
+                }
+                if (chartData.backgroundImage.left !== undefined) {
+                    chartData.backgroundImage.left = (chartData.backgroundImage.left || 0) * scale;
+                }
+                if (chartData.backgroundImage.top !== undefined) {
+                    chartData.backgroundImage.top = (chartData.backgroundImage.top || 0) * scale;
+                }
+            }
+        }
+
+        // Clean up view canvas when modal is closed
+        $('#viewDentalChartModal').on('hidden.bs.modal', function() {
+            if (window.viewChartCanvas) {
+                window.viewChartCanvas.dispose();
+                window.viewChartCanvas = null;
+            }
+        });
+
         // Edit Dental Chart
         function editDentalChart(chartId) {
             $.ajax({
@@ -1347,34 +1648,91 @@
             // Get container width for responsive canvas
             const container = canvasElement.parentElement;
             const containerWidth = container.clientWidth - 20; // Subtract padding
-            const calculatedWidth = Math.max(800, containerWidth); // Minimum 800px width
+
+            // Determine canvas dimensions based on chart type
+            let canvasWidth, canvasHeight;
+
+            if (chart.chart_type === 'periodontal') {
+                // Periodontal chart specific dimensions to match image size (1024x1280)
+                canvasWidth = 1024;
+                canvasHeight = 1280;
+            } else {
+                // Default dimensions for other chart types
+                canvasWidth = Math.max(800, containerWidth); // Minimum 800px width
+                canvasHeight = 600;
+            }
 
             dentalChartFabric = new fabric.Canvas('editDentalChartCanvas', {
-                width: calculatedWidth,
-                height: 600,
+                width: canvasWidth,
+                height: canvasHeight,
                 backgroundColor: '#ffffff'
             });
 
-            // Load existing chart data
-            if (chart.chart_data) {
-                let chartData = chart.chart_data;
-                // If it's a string, parse it; if it's already an object, use it directly
-                if (typeof chartData === 'string') {
-                    chartData = JSON.parse(chartData);
-                }
-                dentalChartFabric.loadFromJSON(chartData, function() {
-                    dentalChartFabric.renderAll();
-                });
-            }
+            // Update canvas element size to match fabric canvas
+            canvasElement.style.width = canvasWidth + 'px';
+            canvasElement.style.height = canvasHeight + 'px';
 
-            // Load background image if exists
+            // Load background image first if it exists (for image_annotation type)
             if (chart.image_path) {
                 const imageUrl = '{{ asset('storage') }}/' + chart.image_path;
                 fabric.Image.fromURL(imageUrl, function(img) {
                     img.scaleToWidth(dentalChartFabric.width);
                     img.scaleToHeight(dentalChartFabric.height);
-                    dentalChartFabric.setBackgroundImage(img, dentalChartFabric.renderAll.bind(dentalChartFabric));
+                    dentalChartFabric.setBackgroundImage(img, function() {
+                        // Load chart data after background image is set
+                        loadChartDataForEdit(chart);
+                    }, {
+                        crossOrigin: 'anonymous'
+                    });
+                }, {
+                    crossOrigin: 'anonymous'
                 });
+            } else if (chart.chart_type === 'periodontal') {
+                // For periodontal charts, load template first if no background image exists
+                const templateUrl = '{{ asset('assets/admin/img/dental-templates/periodontal-chart.png') }}';
+                fabric.Image.fromURL(templateUrl, function(img) {
+                    if (img) {
+                        // Image dimensions are 1024x1280, canvas should match exactly
+                        // No scaling needed - just place at 0,0
+                        img.set({
+                            left: 0,
+                            top: 0,
+                            selectable: false,
+                            evented: false,
+                            scaleX: 1,
+                            scaleY: 1
+                        });
+                        dentalChartFabric.setBackgroundImage(img, function() {
+                            // Load chart data after template is set
+                            loadChartDataForEdit(chart);
+                        }, {
+                            crossOrigin: 'anonymous'
+                        });
+                    } else {
+                        // If template fails to load, just load chart data
+                        loadChartDataForEdit(chart);
+                    }
+                }, {
+                    crossOrigin: 'anonymous'
+                });
+            } else {
+                // Load chart data directly (background should be in JSON if it exists)
+                loadChartDataForEdit(chart);
+            }
+
+            function loadChartDataForEdit(chart) {
+                if (chart.chart_data) {
+                    let chartData = chart.chart_data;
+                    // If it's a string, parse it; if it's already an object, use it directly
+                    if (typeof chartData === 'string') {
+                        chartData = JSON.parse(chartData);
+                    }
+                    dentalChartFabric.loadFromJSON(chartData, function() {
+                        dentalChartFabric.renderAll();
+                    });
+                } else {
+                    dentalChartFabric.renderAll();
+                }
             }
 
             // Reset undo history

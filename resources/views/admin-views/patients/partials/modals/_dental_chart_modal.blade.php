@@ -48,9 +48,9 @@
                     <!-- Drawing Canvas Container -->
                     <div class="form-group">
                         <label class="input-label">{{ translate('Dental Chart') }}</label>
-                        <div class="border rounded p-2" style="background: #f8f9fa;">
-                            <canvas id="dentalChartCanvas" height="600"
-                                style="width: 100%; border: 1px solid #ddd; cursor: crosshair;"></canvas>
+                        <div class="border rounded p-2" style="background: #f8f9fa; overflow-x: auto;">
+                            <canvas id="dentalChartCanvas"
+                                style="border: 1px solid #ddd; cursor: crosshair; display: block;"></canvas>
                         </div>
                         <div class="mt-2">
                             <button type="button" class="btn btn-sm btn-secondary" id="clearCanvas">
@@ -161,9 +161,9 @@
 
                     <div class="form-group">
                         <label class="input-label">{{ translate('Dental Chart') }}</label>
-                        <div class="border rounded p-2" style="background: #f8f9fa;">
-                            <canvas id="editDentalChartCanvas" height="600"
-                                style="width: 100%; border: 1px solid #ddd; cursor: crosshair;"></canvas>
+                        <div class="border rounded p-2" style="background: #f8f9fa; overflow-x: auto;">
+                            <canvas id="editDentalChartCanvas"
+                                style="border: 1px solid #ddd; cursor: crosshair; display: block;"></canvas>
                         </div>
                         <div class="mt-2">
                             <button type="button" class="btn btn-sm btn-secondary" id="editClearCanvas">
@@ -225,6 +225,34 @@
                     <button type="submit" class="btn btn-primary">{{ translate('Update Chart') }}</button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+<!-- View Dental Chart Modal -->
+<div class="modal fade" id="viewDentalChartModal" tabindex="-1" role="dialog"
+    aria-labelledby="viewDentalChartLabel" aria-hidden="true">
+    <div class="modal-dialog modal-fullscreen" role="document" style="max-width: 90vw; width: 90vw; margin: auto;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="viewDentalChartLabel">{{ translate('View Dental Chart') }}</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body text-center"
+                style="padding: 20px; background: #f8f9fa; overflow-y: auto; overflow-x: hidden; max-height: 85vh;">
+                <div id="viewChartInfo" class="mb-3"></div>
+                <div class="border rounded p-2 d-inline-block"
+                    style="background: white; width: 100%; max-width: 100%;">
+                    <canvas id="viewDentalChartCanvas"
+                        style="border: 1px solid #ddd; display: block; margin: 0 auto; width: 100%; max-width: 100%;"></canvas>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary"
+                    data-dismiss="modal">{{ translate('Close') }}</button>
+            </div>
         </div>
     </div>
 </div>

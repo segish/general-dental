@@ -23,6 +23,12 @@
                             </small>
                         </div>
                         <div>
+                            @if (auth('admin')->user()->can('dental_chart.list'))
+                                <button type="button" class="btn btn-sm btn-info"
+                                    onclick="viewDentalChart({{ $chart->id }})" title="View Full Chart">
+                                    <i class="tio-visible"></i> {{ translate('View') }}
+                                </button>
+                            @endif
                             @if (auth('admin')->user()->can('dental_chart.edit'))
                                 <button type="button" class="btn btn-sm btn-primary"
                                     onclick="editDentalChart({{ $chart->id }})">
@@ -55,9 +61,14 @@
                                         style="display: none;"></canvas>
                                 </div>
                             @else
-                                <div class="border rounded p-2" style="background: #f8f9fa; max-width: 800px;">
-                                    <canvas id="chart-canvas-{{ $chart->id }}" width="800" height="600"
-                                        style="border: 1px solid #ddd;"></canvas>
+                                <div class="border rounded p-2" style="background: #f8f9fa; overflow-x: auto;">
+                                    @if ($chart->chart_type === 'periodontal')
+                                        <canvas id="chart-canvas-{{ $chart->id }}" width="1024" height="1280"
+                                            style="border: 1px solid #ddd; display: block;"></canvas>
+                                    @else
+                                        <canvas id="chart-canvas-{{ $chart->id }}" width="800" height="600"
+                                            style="border: 1px solid #ddd; display: block;"></canvas>
+                                    @endif
                                 </div>
                             @endif
                         </div>
@@ -68,7 +79,19 @@
                                     const chartData = @json($chart->chart_data);
 
                                     if (typeof fabric !== 'undefined' && chartData) {
-                                        const canvas = new fabric.Canvas(canvasId);
+                                        // Determine canvas dimensions based on chart type
+                                        @if ($chart->chart_type === 'periodontal')
+                                            const canvasWidth = 1024;
+                                            const canvasHeight = 1280;
+                                        @else
+                                            const canvasWidth = 800;
+                                            const canvasHeight = 600;
+                                        @endif
+
+                                        const canvas = new fabric.Canvas(canvasId, {
+                                            width: canvasWidth,
+                                            height: canvasHeight
+                                        });
 
                                         @if ($chart->chart_type === 'image_annotation' && $chart->image_path)
                                             // Load background image first
